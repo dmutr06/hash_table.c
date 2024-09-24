@@ -7,10 +7,10 @@
 static const float HT_LOAD_FACTOR = 0.6;
 static const size_t HT_INITIAL_CAP = 16;
 
-enum BucketState {
-  EMPTY,
-  OCCUPIED,
-  REMOVED
+enum _BucketState {
+  _BUCKET_EMPTY,
+  _BUCKET_OCCUPIED,
+  _BUCKET_REMOVED
 };
 
 size_t hash(const char *key) {
@@ -24,16 +24,16 @@ size_t hash(const char *key) {
 }
 
 #define REG_HASH_TABLE(type) \
-typedef struct Bucket_##type { \
-  enum BucketState state; \
+typedef struct _Bucket_##type { \
+  enum _BucketState state; \
   char *key; \
   type val; \
-} Bucket_##type; \
+} _Bucket_##type; \
 \
 typedef struct HashTable_##type { \
   size_t cap; \
   size_t size; \
-  Bucket_##type *buckets; \
+  _Bucket_##type *buckets; \
 } HashTable_##type; \
 \
 void ht_insert_##type (HashTable_##type *this, const char *key, type val); \
@@ -44,28 +44,28 @@ int _internal_ht_insert_##type (HashTable_##type *this, char *key, type val); \
 void ht_init_##type (HashTable_##type *table) { \
   table->cap = HT_INITIAL_CAP; \
   table->size = 0; \
-  table->buckets = malloc(table->cap * sizeof(Bucket_##type)); \
+  table->buckets = malloc(table->cap * sizeof(_Bucket_##type)); \
   for (size_t i = 0; i < table->cap; ++i) { \
-      table->buckets[i].state = EMPTY; /* Initialize bucket states to EMPTY */ \
+      table->buckets[i].state = _BUCKET_EMPTY; /* Initialize bucket states to _BUCKET_EMPTY */ \
   } \
 } \
 void _ht_resize_##type (HashTable_##type *this) { \
   const size_t old_cap = this->cap; \
   this->cap *= 2; \
-  Bucket_##type *old_buckets = this->buckets; \
-  this->buckets = malloc(this->cap * sizeof(Bucket_##type)); \
+  _Bucket_##type *old_buckets = this->buckets; \
+  this->buckets = malloc(this->cap * sizeof(_Bucket_##type)); \
   for (size_t i = 0; i < this->cap; ++i) { \
-      this->buckets[i].state = EMPTY; /* Initialize bucket states to EMPTY */ \
+      this->buckets[i].state = _BUCKET_EMPTY; /* Initialize bucket states to _BUCKET_EMPTY */ \
   } \
   for (size_t i = 0; i < old_cap; ++i) { \
-    Bucket_##type *bucket = old_buckets + i; \
+    _Bucket_##type *bucket = old_buckets + i; \
     switch (bucket->state) { \
-      case EMPTY: \
+      case _BUCKET_EMPTY: \
         break; \
-      case OCCUPIED: \
+      case _BUCKET_OCCUPIED: \
         _internal_ht_insert_##type (this, bucket->key, bucket->val); \
         break; \
-      case REMOVED: \
+      case _BUCKET_REMOVED: \
         free(bucket->key); \
         break; \
     } \
@@ -76,14 +76,14 @@ void _ht_resize_##type (HashTable_##type *this) { \
 type *ht_find_##type (const HashTable_##type *this, const char *key) { \
   const size_t hashed_key = hash(key); \
   for (size_t i = 0; i < this->cap; ++i) { \
-    Bucket_##type *bucket = this->buckets + ((hashed_key + i) % this->cap); \
+    _Bucket_##type *bucket = this->buckets + ((hashed_key + i) % this->cap); \
     switch (bucket->state) { \
-      case EMPTY: \
+      case _BUCKET_EMPTY: \
         break; \
-      case OCCUPIED: \
+      case _BUCKET_OCCUPIED: \
         if (strcmp(key, bucket->key) == 0) return &bucket->val; \
         break; \
-      case REMOVED: \
+      case _BUCKET_REMOVED: \
         if (strcmp(key, bucket->key) == 0) return NULL; \
         break; \
     } \
@@ -94,24 +94,24 @@ type *ht_find_##type (const HashTable_##type *this, const char *key) { \
 int _internal_ht_insert_##type (HashTable_##type *this, char *key, type val) { \
   const size_t hashed_key = hash(key); \
   for (size_t i = 0; i < this->cap; ++i) { \
-    Bucket_##type *bucket = this->buckets + ((hashed_key + i) % this->cap); \
+    _Bucket_##type *bucket = this->buckets + ((hashed_key + i) % this->cap); \
     switch (bucket->state) { \
-      case EMPTY: \
+      case _BUCKET_EMPTY: \
         bucket->key = key; \
         bucket->val = val; \
-        bucket->state = OCCUPIED; \
+        bucket->state = _BUCKET_OCCUPIED; \
         return 1; \
-      case OCCUPIED: \
+      case _BUCKET_OCCUPIED: \
         if (strcmp(key, bucket->key) == 0) { \
           bucket->val = val; \
           return 0; \
         } \
         break; \
-      case REMOVED: \
+      case _BUCKET_REMOVED: \
         free(bucket->key); \
         bucket->key = key; \
         bucket->val = val; \
-        bucket->state = OCCUPIED; \
+        bucket->state = _BUCKET_OCCUPIED; \
         return 1; \
     } \
   } \
@@ -126,16 +126,16 @@ void ht_insert_##type (HashTable_##type *this, const char *key, type val) { \
 void ht_erase_##type (HashTable_##type *this, const char *key) { \
   const size_t hashed_key = hash(key); \
   for (size_t i = 0; i < this->cap; ++i) { \
-    Bucket_##type *bucket = this->buckets + ((hashed_key + i) % this->cap); \
+    _Bucket_##type *bucket = this->buckets + ((hashed_key + i) % this->cap); \
     switch (bucket->state) { \
-      case EMPTY: \
+      case _BUCKET_EMPTY: \
         return; \
-      case OCCUPIED: \
+      case _BUCKET_OCCUPIED: \
         if (strcmp(key, bucket->key) != 0) break; \
         --this->size; \
-        bucket->state = REMOVED; \
+        bucket->state = _BUCKET_REMOVED; \
         break; \
-      case REMOVED: \
+      case _BUCKET_REMOVED: \
         if (strcmp(key, bucket->key) == 0) return; \
         break; \
     } \
@@ -144,14 +144,14 @@ void ht_erase_##type (HashTable_##type *this, const char *key) { \
 \
 void ht_deinit_##type (HashTable_##type *this) { \
     for (size_t i = 0; i < this->cap; i++) { \
-        Bucket_##type *bucket = this->buckets + i; \
+        _Bucket_##type *bucket = this->buckets + i; \
         switch (bucket->state) { \
-            case EMPTY: \
+            case _BUCKET_EMPTY: \
                 continue; \
-            case OCCUPIED: \
+            case _BUCKET_OCCUPIED: \
                 free(bucket->key); \
                 continue; \
-            case REMOVED: \
+            case _BUCKET_REMOVED: \
                 continue; \
         } \
     } \
